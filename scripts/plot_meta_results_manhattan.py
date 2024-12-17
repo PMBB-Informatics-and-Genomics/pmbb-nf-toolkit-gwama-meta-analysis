@@ -39,7 +39,7 @@ output_manhattan = f'{output_dir}{analysis}.{pheno}.manhattan.png'
 output_qq = f'{output_dir}{analysis}.{pheno}.qq.png'
 
 # Example output file to be used lives in:
-# /project/path/to/data/*.gz
+# /path/to/data/*.gz
 
 # Instantiate manhattan plot object
 plot_title = f'GWAMA Meta Manhattan for {analysis}: {pheno.replace("_", " ")}'
@@ -53,6 +53,8 @@ if annot_file is not None:
     annot_df = pd.read_csv(annot_file)
     annot_df['ID'] = annot_df['Gene']
     mp.add_annotations(annot_df, extra_cols=['RSID'])
+
+
 
 mp.get_thinned_data()
 

@@ -73,7 +73,6 @@ workflow GWAMA_SETUP {
 
         // Make cohort x pheno combinations
         cohort_pheno = Channel.fromList(all_unique_cohorts).combine(pheno)
-
         // Map cohort x pheno combinations to file paths
         cohort_pheno_sumstats = cohort_pheno.map { c, p ->
             new Tuple(c, p, "${launchDir}/${c}/Sumstats/${c}.${p}${params.sumstats_suffix}")
@@ -89,7 +88,7 @@ workflow GWAMA_META {
     main:
         // Get all of the phenotypes in one list
         pheno = get_pheno_channel(params)
-
+        // cohort_pheno_sumstats.view{"sumstats: ${it}"}
         // Iterate over input channel to see which cohort/phenotype files exist
         sumstats_keep = cohort_pheno_sumstats.filter { c, p, sumstats -> file(sumstats).exists() }
         sumstats_dropped = cohort_pheno_sumstats.filter { c, p, sumstats -> !file(sumstats).exists() } \
@@ -97,7 +96,7 @@ workflow GWAMA_META {
         write_dropped_file(sumstats_dropped.collect(flat: false))
 
         // Pass each individual cohort/phenotype summary stats file to be munged
-        gwama_munge_script = "${launchDir}/scripts/munge_sumstats_for_gwama.py"
+        gwama_munge_script = "${moduleDir}/scripts/munge_sumstats_for_gwama.py"
         munge_output = munge_sumstats_file(sumstats_keep, gwama_munge_script)
 
         // Get a List of Tuples of ALL (cohort, analysis) combinations from params
@@ -157,7 +156,7 @@ workflow GWAMA_META {
         gwama_meta_sumstats = add_chr_pos_to_meta_sumstats(gwama_meta_output)
 
         // Plots and report post-processing
-        plotting_script = "${launchDir}/scripts/plot_meta_results_manhattan.py"
+        plotting_script = "${moduleDir}/scripts/plot_meta_results_manhattan.py"
 
         // Filter summary stats for summary tables
         (filtered_results, meta_analysis_Ns) = filter_sumstats(gwama_meta_sumstats)
@@ -169,6 +168,7 @@ workflow GWAMA_META {
             // Use the biofilter mini-workflow to get RSIDs and nearest genes
             biofilter_input = make_biofilter_positions_input(filtered_sumstats_list)
             bf_input_channel = Channel.of('gwama_meta').combine(biofilter_input)
+            // bf_input_channel.view{"bic: ${it}"}
             biofilter_annots = BIOFILTER_POSITIONS(bf_input_channel)
 
             plots = plot_meta_results_with_annot(gwama_meta_sumstats.combine(biofilter_annots), plotting_script)
@@ -187,6 +187,7 @@ workflow GWAMA_META {
 // If any of the expected summary stats files didn't exist, write a log
 process write_dropped_file {
     publishDir "${launchDir}"
+    machineType 'n2-standard-4'
 
     input:
         val cohort_pheno_list
@@ -201,12 +202,18 @@ process write_dropped_file {
           | sort \
           > sumstats_dropped.txt
         """
+    stub:
+        '''
+        touch sumstats_dropped.txt
+        '''
 }
 
 // Munge the summary stats files to format the input for GWAMA
 process munge_sumstats_file {
-    publishDir "${launchDir}/Meta/MSS/"
+    // publishDir "${launchDir}/Meta/MSS/"
     memory '18GB'
+    machineType 'n2-standard-8'
+
     input:
         tuple val(cohort), val(pheno), path(sumstats)
         path(gwama_munge_script)
@@ -233,6 +240,7 @@ process munge_sumstats_file {
 // Make a list of sumstats file paths that GWAMA will use as input
 process make_infile {
     publishDir "${launchDir}/Meta/${analysis}/"
+    machineType 'n2-standard-4'
 
     input:
         tuple val(analysis), val(pheno), val(cohort_list), path(input_files)
@@ -242,12 +250,17 @@ process make_infile {
         """
         echo "${input_files.join('\n')}" > ${pheno}.sumstats.in
         """
+    stub:
+        """
+        touch ${pheno}.sumstats.in
+        """
 }
 
 // Call the GWAMA tool
 process call_gwama {
     publishDir "${launchDir}/Meta/${analysis}"
     memory '25GB'
+    machineType 'n2-standard-16'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats_infile), val(cohort_list), path(sumstats_file_list)
@@ -276,6 +289,7 @@ process call_gwama {
 // Add CHR and POS columns back to the summary stats
 process add_chr_pos_to_meta_sumstats {
     publishDir "${launchDir}/Meta/Sumstats/"
+    machineType 'n2-standard-4'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats_file), path(snp_coords)
@@ -284,13 +298,33 @@ process add_chr_pos_to_meta_sumstats {
     script:
         """
         #! ${params.my_python}
+
+        # import python modules
         import pandas as pd
 
+        # read in input files
         coords = pd.read_table('${snp_coords}', index_col='MARKERNAME')
         results = pd.read_table('${sumstats_file}', index_col='rs_number')
 
+        # drop duplicate coordinates
+        coords = coords[~coords.index.duplicated(keep='first')]
+
+        # concatenate coordinates and GWAMA output
         df = pd.concat([coords, results], axis=1)
+
+        # rename index
         df.index.name = 'variant_id'
+
+        # drop variants with missing p-values
+        df = df.dropna(subset=['p-value'])
+
+        # drop i2 column
+        df = df.drop(columns=['i2'])
+
+        # remove "chr" prefix from chromosome column if its present
+        df['CHR'] = df['CHR'].astype(str).str.replace('chr', '', regex=False)
+
+        # export dataframe
         df.to_csv('${analysis}.${pheno}.meta.gz', sep='\\t')
         """
     stub:
@@ -302,6 +336,7 @@ process add_chr_pos_to_meta_sumstats {
 // Filter the sumstats for summary tables
 process filter_sumstats {
     publishDir "${launchDir}/Meta/Suggestive/"
+    machineType 'n2-standard-4'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats_file)
@@ -351,6 +386,7 @@ process filter_sumstats {
 // Create a file to pass to biofilter
 process make_biofilter_positions_input {
     publishDir "${launchDir}/Annotations/"
+    machineType 'n2-standard-4'
 
     input:
         path(filtered_sumstats)
@@ -367,7 +403,9 @@ process make_biofilter_positions_input {
             dfs.append(pd.read_table(f))
         all = pd.concat(dfs)
         keep_cols = ['CHR', 'variant_id', 'POS']
-        all[keep_cols].to_csv('gwama_meta_biofilter_input_positions.txt', header=False, index=False, sep=' ')
+        df = all[keep_cols]
+        df['POS'] = df['POS'].astype(int)
+        df.to_csv('gwama_meta_biofilter_input_positions.txt', header=False, index=False, sep=' ')
         """
     stub:
         '''
@@ -378,6 +416,9 @@ process make_biofilter_positions_input {
 // Make Manhattan and QQ plots
 process plot_meta_results {
     publishDir "${launchDir}/Plots/"
+    memory '25GB'
+    machineType 'n2-standard-4'
+    label 'safe_to_skip'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats)
@@ -403,6 +444,7 @@ process plot_meta_results {
 process plot_meta_results_with_annot {
     publishDir "${launchDir}/Plots/"
     memory '25GB'
+    label 'safe_to_skip'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats), val(data_nickname), path(biofilter_annots)
@@ -428,6 +470,7 @@ process plot_meta_results_with_annot {
 // Make top hits summary table
 process make_summary_table {
     publishDir "${launchDir}/Summary/"
+    machineType 'n2-standard-4'
 
     input:
         path all_filtered_sumstats
@@ -456,6 +499,7 @@ process make_summary_table {
 // Make top hits summary table with RSIDs and nearest genes
 process make_summary_table_with_annot {
     publishDir "${launchDir}/Summary/"
+    machineType 'n2-standard-4'
 
     input:
         path all_filtered_sumstats
@@ -491,6 +535,7 @@ process make_summary_table_with_annot {
 // Combine the N Samples Files to get a Table of Sample Size
 process make_analysis_size_table {
     publishDir "${launchDir}/Summary/"
+    machineType 'n2-standard-4'
 
     input:
         path(all_sample_sizes)

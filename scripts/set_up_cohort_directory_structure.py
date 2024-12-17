@@ -12,7 +12,7 @@ file_source = 'pattern'
 # ====> Use this section if providing a directory with all files that follow a naming pattern
 # Set this variable to the full path containing all of your summary stats
 # This should end in a /
-sumstats_dir = '/project/ssverma_shared/projects/Endometriosis/Endo_GBMI/External_Sumstats/Download/'
+sumstats_dir = '/path/to/data/'
 # Set this variable to a delimited pattern
 # Any variables contributing to the cohort name should be COHORT (dataset, ancestry, sex, batch, etc)
 # The phenotype variable should be PHENO
@@ -54,7 +54,7 @@ if file_source == 'pattern':
     # Concatenate the variables in order with underscores
     multiple_cohort_cols = pattern.count('COHORT') > 1
     if multiple_cohort_cols:
-        files_df['COHORT_DIR'] = files_df['COHORT'].path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/path/to/nextflow/apply(lambda x: '_'.join(x), axis=1)
+        files_df['COHORT_DIR'] = files_df['COHORT'].apply(lambda x: '_'.join(x), axis=1)
     else:
         files_df['COHORT_DIR'] = files_df['COHORT']
 elif file_source == 'table':
