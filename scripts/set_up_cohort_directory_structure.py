@@ -72,7 +72,7 @@ elif file_source == 'table':
 print(files_df)
 
 # Construct the new path
-files_df['LINK_PATH'] = files_df['COHORT_DIR'] + '/Sumstats/' + files_df['PHENO'] + '.' + files_df['SUFFIX']
+files_df['LINK_PATH'] = files_df['COHORT_DIR'] + '/Sumstats/' + files_df['COHORT_DIR'] + '.' + files_df['PHENO'] + '.' + files_df['SUFFIX']
 
 # Iterate over the DataFrame and run the symbolic link command
 for _, row in files_df.iterrows():
