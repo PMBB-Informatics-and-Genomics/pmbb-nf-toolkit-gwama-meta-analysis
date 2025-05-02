@@ -10,6 +10,10 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
 [Paper Link for Reference](https://link.springer.com/article/10.1186/1471-2105-11-288)
 
 [Tool Documentation Link](https://genomics.ut.ee/en/tools)
+
+[Example Module Config File](https://github.com/PMBB-Informatics-and-Genomics/pmbb-geno-pheno-toolkit/tree/main/Example_Configs/gwama_meta.config)
+
+[Example nextflow.config File](https://github.com/PMBB-Informatics-and-Genomics/pmbb-geno-pheno-toolkit/tree/main/Example_Configs/nextflow.config)
 ## Cloning Github Repository:
 
 
@@ -25,13 +29,13 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
 ## Commands for Running the Workflow
 
 
-* Singularity Command: `singularity build gwama_meta.sif docker://katiecardone26/gwama_meta:latest`
+* Singularity Command: `singularity build gwama_meta.sif docker://pennbiobank/gwama_meta:latest`
 
 * Docker Command: `docker pull pennbiobank/gwama_meta:latest`
 
-* Command to Pull from Google Container Registry: `docker pull gcr.io/verma-pmbb-codeworks-psom-bf87/saige:latest`
+* Command to Pull from Google Container Registry: `docker pull pennbiobank/gwama_meta:latest`
 
-* Run Command: `nextflow run gwama_meta.nf -profile cluster -resume`
+* Run Command: `nextflow run /path/to/toolkit/module/gwama_meta.nf`
 
 * Common `nextflow run` flags:
 
@@ -55,6 +59,10 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
 ## Workflow
 
 
+* `my_python` (Type: File Path)
+
+    * Path to the python executable to be used for python scripts - often it comes from the docker/singularity container (/opt/conda/bin/python)
+
 * `analyses` (Type: Map (Dictionary))
 
     * Map of lists where keys are meta-analysis group nicknames and lists are groups of cohorts to include in that meta-analysis. This allows for multiple combinations of meta-analyses, for example all cohorts of one sex/ancestry, leave-one-biobank-out.
@@ -62,12 +70,12 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
 * `bin_pheno_list` (Type: List)
 
     * Binary phenotype list
-
-* `quant_pheno_list` (Type: List)
-
-    * Quantitative phenotype list
 ## Pre-Processing
 
+
+* `input_col_names` (Type: Map (Dictionary))
+
+    * A Groovy config map where the keys are the required GWAMA columns and the values are the corresponding column names from your input files. The required columns for GWAMA are [MARKERNAME, EA, NEA, N, EAF, CHR, POS] whereas for the effect sizes you can have any of the following sets [OR, SE], [OR, OR_95L, OR_95U], [BETA, SE]
 
 * `sumstats_suffix` (Type: String)
 
@@ -95,16 +103,8 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
         1       767638  chr1:767638:T:G T       G       20.2745 0.000365017     0       0.530985        0.229512        10.0803 18.9841 0.02069291      27772
         
         ```
-
-* `input_col_names` (Type: Map (Dictionary))
-
-    * A Groovy config map where the keys are the required GWAMA columns and the values are the corresponding column names from your input files. The required columns for GWAMA are [MARKERNAME, EA, NEA, N, EAF, CHR, POS] whereas for the effect sizes you can have any of the following sets [OR, SE], [OR, OR_95L, OR_95U], [BETA, SE]
 ## GWAMA
 
-
-* `min_meta_input_EAF` (Type: Float)
-
-    * The minimum effect allele frequency to use when munging the input summary stats. 
 
 * `gwama_path` (Type: File Path)
 
@@ -117,34 +117,57 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
         * Type: Executable
 
         * Format: exe
+
+* `min_meta_input_EAF` (Type: Float)
+
+    * The minimum effect allele frequency to use when munging the input summary stats. 
 ## Post-Processing
 
 
-* `p_cutoff_summarize` (Type: Float)
+* `biofilter_close_dist` (Type: Float)
 
-    * P-Value Threshold for Summarizing Results at the End, arbitrary p-value threshold for creating a table of results combined with low p-values 
-
-* `annotate` (Type: Bool (Java: true or false))
-
-    * Whether or not to annotate results with the RSIDs and nearest genes for plotting and summary files.
-
-* `biofilter_build` (Type: String)
-
-    * The build to pass to biofilter - can be 19 or 38
-
-* `biofilter_loki` (Type: File Path)
-
-    * The path to a loki.db file to be used for nearest gene annotation
+    * The distance in bp for something to be considered “close” vs “far” with respect to nearest gene annotation. Value is often 5E4
 
 * `biofilter_script` (Type: File Path)
 
     * The path to the biofilter script to use. If using the singularity container, should be ‘/app/biofilter.py’
 
-* `biofilter_close_dist` (Type: Float)
+* `biofilter_loki` (Type: File Path)
 
-    * The distance in bp for something to be considered “close” vs “far” with respect to nearest gene annotation. Value is often 5E4
+    * The path to a loki.db file to be used for nearest gene annotation
+
+* `biofilter_build` (Type: String)
+
+    * The build to pass to biofilter - can be 19 or 38
+
+* `annotate` (Type: Bool (Java: true or false))
+
+    * Whether or not to annotate results with the RSIDs and nearest genes for plotting and summary files.
 # Output Files from GWAMA_Meta-Analysis
 
+
+* Meta-Analysis Top Hits
+
+    * Meta-analysis top hits all in one place. If annotate is true, these will also have RSID and nearest gene
+
+    * Type: Summary Table
+
+    * Format: csv
+
+    * Output File Header:
+
+
+
+
+
+    ```
+    variant_id,CHR,POS,reference_allele,other_allele,eaf,beta,se,beta_95L,beta_95U,z,p-value,_-log10_p-value,q_statistic,q_p-value,i2,n_studies,n_samples,effects,PHENO,ANALYSIS,OR,OR_se,OR_95L,OR_95U,Gene,RSID
+    chr10:112974337:A:G,10,112974337,G,A,0.179407,,,,,4.572918,4.88e-06,5.31143,2.193479,0.138596,0.544103,2.0,-9.0,++,T2D,AFR_EUR,1.118071,0.026645,1.065847,1.172854,TCF7L2,rs11196174
+    chr10:112976855:T:C,10,112976855,C,T,0.17661,,,,,4.576326,4.8e-06,5.318488,1.65513,0.198262,0.395818,2.0,-9.0,++,T2D,AFR_EUR,1.118606,0.02675,1.066176,1.173613,TCF7L2,rs11196175
+    chr10:112986821:C:G,10,112986821,G,C,0.546976,,,,,5.571755,2.58e-08,7.587792,9.51063,0.023219,0.684563,4.0,-9.0,++++,T2D,ALL,1.11404,0.021188,1.072513,1.157176,TCF7L2,rs4073980
+    chr10:112986821:C:G,10,112986821,G,C,0.605747,,,,,5.352806,8.85e-08,7.052915,7.074541,0.007819,0.858648,2.0,-9.0,++,T2D,AFR_EUR,1.110165,0.021265,1.068484,1.153471,TCF7L2,rs4073980
+    
+    ```
 
 * Meta-Analysis Summary Statistics
 
@@ -170,87 +193,6 @@ GWAMA meta-analysis uses the advanced statistical software, GWAMA, for performin
     chr1:100002416:C:T      1       100002416       T       C       0.064698        0.034357        0.029261        -0.022994       0.091709        1.174164        0.240309   0.61923  0.0     1.0             1.0     10275.0 ???+
     
     ```
-
-* Meta-Analysis Top Hits
-
-    * Meta-analysis top hits all in one place. If annotate is true, these will also have RSID and nearest gene
-
-    * Type: Summary Table
-
-    * Format: csv
-
-    * Output File Header:
-
-
-
-
-
-    ```
-    variant_id,CHR,POS,reference_allele,other_allele,eaf,beta,se,beta_95L,beta_95U,z,p-value,_-log10_p-value,q_statistic,q_p-value,i2,n_studies,n_samples,effects,PHENO,ANALYSIS,OR,OR_se,OR_95L,OR_95U,Gene,RSID
-    chr10:112974337:A:G,10,112974337,G,A,0.179407,,,,,4.572918,4.88e-06,5.31143,2.193479,0.138596,0.544103,2.0,-9.0,++,T2D,AFR_EUR,1.118071,0.026645,1.065847,1.172854,TCF7L2,rs11196174
-    chr10:112976855:T:C,10,112976855,C,T,0.17661,,,,,4.576326,4.8e-06,5.318488,1.65513,0.198262,0.395818,2.0,-9.0,++,T2D,AFR_EUR,1.118606,0.02675,1.066176,1.173613,TCF7L2,rs11196175
-    chr10:112986821:C:G,10,112986821,G,C,0.546976,,,,,5.571755,2.58e-08,7.587792,9.51063,0.023219,0.684563,4.0,-9.0,++++,T2D,ALL,1.11404,0.021188,1.072513,1.157176,TCF7L2,rs4073980
-    chr10:112986821:C:G,10,112986821,G,C,0.605747,,,,,5.352806,8.85e-08,7.052915,7.074541,0.007819,0.858648,2.0,-9.0,++,T2D,AFR_EUR,1.110165,0.021265,1.068484,1.153471,TCF7L2,rs4073980
-    
-    ```
-# Example Config File Contents
-
-
-```
-params {
-    analyses = [
-        'AFR_EUR': ['AFR_ALL', 'EUR_ALL'],
-        'ALL': ['AFR_ALL', 'EUR_ALL', 'EAS_ALL', 'AMR_ALL', 'SAS_ALL'],
-        'ALL_M': ['AFR_M', 'EUR_M', 'EAS_M', 'AMR_M', 'SAS_M'],
-        'ALL_F': ['AFR_F', 'EUR_F', 'EAS_F', 'AMR_F', 'SAS_F'],
-        'Leave_EUR_Out': ['AFR_ALL', 'EAS_ALL', 'AMR_ALL', 'SAS_ALL']
-    ]
-
-    
-    // Executables for python and GWAMA
-    my_python = '/opt/conda/bin/python'
-    gwama_path = '/app/GWAMA'
-
-    // Lists of phenotypes
-    bin_pheno_list =  ['T2D', 'AAA']
-    quant_pheno_list = ['LDL_median', 'BMI_median']
-
-    // Min Allele Frequency for Meta-Analysis
-    min_meta_input_EAF = 0.05
-
-    // Pre- and Post-Processing Params
-    sumstats_suffix = '.saige.gz'
-    p_cutoff_summarize = 0.00001
-
-    annotate = true
-
-    // The following arguments go with annotate=true and will be used by the biofilter_wrapper sub-workflow
-    biofilter_build = '38' // can be 19 or 38
-    biofilter_loki = '/path/to/data/loki.db'
-    biofilter_script = '/app/biofilter.py' // Must be an executable python file
-    biofilter_close_dist = 5E4
-
-    // Column names to map:
-    // Keys = GWAMA Column
-    // Values = Input Column
-    input_col_names = [
-        'MARKERNAME' : 'variant_id',
-        'EA' : 'effect_allele',
-        'NEA' : 'other_allele',
-        'OR' : 'odds_ratio',
-        'OR_95L' : 'odds_ratio_ci_95L',
-        'OR_95U' : 'odds_ratio_ci_95U',
-        'BETA' : 'beta',
-        'SE' : 'standard_error',
-        'N' : 'N',
-        'N_CASE': 'n_cases',
-        'N_CTRL': 'n_controls',
-        'EAF' : 'effect_allele_frequency',
-        'CHR' : 'chromosome',
-        'POS' : 'base_pair_location'
-    ]
-}
-```
 # Current Dockerfile for the Container/Image
 
 
@@ -287,41 +229,6 @@ RUN apt-get update \
     && rm -R biofilter.tar.gz NEAT-Plots
 
 USER root
-
-```
-# Current `nextflow.config` contents
-
-
-```
-includeConfig 'gwama_meta.config'
-
-profiles {
-    non_docker_dev {
-        process.executor = awsbatch-or-lsf-or-slurm-etc
-    }
-
-    standard {
-        process.executor = awsbatch-or-lsf-or-slurm-etc
-        process.container = 'katiecardone26/gwama_meta:latest'
-        docker.enabled = true
-    }
-
-    cluster {
-        process.executor = awsbatch-or-lsf-or-slurm-etc
-        process.queue = 'epistasis_normal'
-        process.memory = '15GB'
-    	process.container = 'gwama_meta.sif'
-        singularity.enabled = true
-        singularity.runOptions = '-B /root/,/directory/,/names/'
-    }
-
-    all_of_us {
-        process.executor = awsbatch-or-lsf-or-slurm-etc
-        process.memory = '15GB'
-        process.container = 'gcr.io/ritchie-aou-psom-9015/gwama_meta:latest'
-        docker.enabled = true
-    }
-}
 
 ```
 # Advanced Nextflow Users: Take/Emit Info

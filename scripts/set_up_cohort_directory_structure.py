@@ -12,7 +12,7 @@ file_source = 'pattern'
 # ====> Use this section if providing a directory with all files that follow a naming pattern
 # Set this variable to the full path containing all of your summary stats
 # This should end in a /
-sumstats_dir = '/path/to/data/'
+sumstats_dir = '/project/ssverma_shared/projects/Endometriosis/Endo_GBMI/External_Sumstats/Download/'
 # Set this variable to a delimited pattern
 # Any variables contributing to the cohort name should be COHORT (dataset, ancestry, sex, batch, etc)
 # The phenotype variable should be PHENO
@@ -72,7 +72,7 @@ elif file_source == 'table':
 print(files_df)
 
 # Construct the new path
-files_df['LINK_PATH'] = files_df['COHORT_DIR'] + '/Sumstats/' + files_df['COHORT_DIR'] + '.' + files_df['PHENO'] + '.' + files_df['SUFFIX']
+files_df['LINK_PATH'] = files_df['COHORT_DIR'] + '/Sumstats/' + files_df['PHENO'] + '.' + files_df['SUFFIX']
 
 # Iterate over the DataFrame and run the symbolic link command
 for _, row in files_df.iterrows():

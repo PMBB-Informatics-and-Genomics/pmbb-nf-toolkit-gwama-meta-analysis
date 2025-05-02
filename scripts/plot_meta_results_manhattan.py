@@ -39,7 +39,7 @@ output_manhattan = f'{output_dir}{analysis}.{pheno}.manhattan.png'
 output_qq = f'{output_dir}{analysis}.{pheno}.qq.png'
 
 # Example output file to be used lives in:
-# /path/to/data/*.gz
+# /project/pmbb_codeworks/projects/geno_pheno_workbench_dev/GWAMA_META/Meta/Sumstats/*.gz
 
 # Instantiate manhattan plot object
 plot_title = f'GWAMA Meta Manhattan for {analysis}: {pheno.replace("_", " ")}'
