@@ -12,7 +12,7 @@ file_source = 'pattern'
 # ====> Use this section if providing a directory with all files that follow a naming pattern
 # Set this variable to the full path containing all of your summary stats
 # This should end in a /
-sumstats_dir = '/project/ssverma_shared/projects/Endometriosis/Endo_GBMI/External_Sumstats/Download/'
+sumstats_dir = '/path/to/data/'
 # Set this variable to a delimited pattern
 # Any variables contributing to the cohort name should be COHORT (dataset, ancestry, sex, batch, etc)
 # The phenotype variable should be PHENO
