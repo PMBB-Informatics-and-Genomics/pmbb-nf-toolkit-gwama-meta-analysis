@@ -160,8 +160,8 @@ workflow GWAMA_META {
 
         // Filter summary stats for summary tables
         (filtered_results, meta_analysis_Ns) = filter_sumstats(gwama_meta_sumstats)
-        filtered_sumstats_list = filtered_results.map { analysis, pheno, sumstats -> sumstats }.collect()
-        sample_sizes_list = meta_analysis_Ns.map { analysis, pheno, info -> info }.collect()
+        filtered_sumstats_list = filtered_results.map { analysis, pheno, sumstats -> sumstats }.toSortedList()
+        sample_sizes_list = meta_analysis_Ns.map { analysis, pheno, info -> info }.toSortedList()
         sample_size_table = make_analysis_size_table(sample_sizes_list)
 
         if (params['annotate']) {
@@ -179,6 +179,9 @@ workflow GWAMA_META {
             plots = plot_meta_results(gwama_meta_sumstats, plotting_script)
             make_summary_table(filtered_sumstats_list)
         }
+
+        jsom_params = dump_params_to_json(params)
+
     emit:
         gwama_meta_sumstats // three-part tuple of (analysis, phenotype, sumstats file path)
         sample_size_table // csv with analysis sample sizes
@@ -261,7 +264,7 @@ process call_gwama {
     publishDir "${launchDir}/Meta/${analysis}"
     memory '25GB'
     machineType 'n2-standard-16'
-
+    container = 'gwama_meta.sif'
     input:
         tuple val(analysis), val(pheno), path(sumstats_infile), val(cohort_list), path(sumstats_file_list)
     output:
@@ -568,3 +571,19 @@ process make_analysis_size_table {
         '''
 
 }
+
+import groovy.json.JsonBuilder
+process dump_params_to_json {
+    publishDir "${launchDir}/Summary", mode: 'copy'
+    machineType 'n2-standard-2'
+
+    input:
+        val params_dict
+    output:
+        path('gwama_meta_params.json')
+    shell:
+        """
+        echo '${new JsonBuilder(params_dict).toPrettyString().replace(';', '|')}' > gwama_meta_params.json
+        """
+}
+
