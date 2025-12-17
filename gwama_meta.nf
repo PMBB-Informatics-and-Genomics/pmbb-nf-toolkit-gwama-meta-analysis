@@ -190,7 +190,6 @@ workflow GWAMA_META {
 // If any of the expected summary stats files didn't exist, write a log
 process write_dropped_file {
     publishDir "${launchDir}"
-    machineType 'n2-standard-4'
 
     input:
         val cohort_pheno_list
@@ -215,7 +214,6 @@ process write_dropped_file {
 process munge_sumstats_file {
     // publishDir "${launchDir}/Meta/MSS/"
     memory '18GB'
-    machineType 'n2-standard-8'
 
     input:
         tuple val(cohort), val(pheno), path(sumstats)
@@ -243,7 +241,6 @@ process munge_sumstats_file {
 // Make a list of sumstats file paths that GWAMA will use as input
 process make_infile {
     publishDir "${launchDir}/Meta/${analysis}/"
-    machineType 'n2-standard-4'
 
     input:
         tuple val(analysis), val(pheno), val(cohort_list), path(input_files)
@@ -263,8 +260,6 @@ process make_infile {
 process call_gwama {
     publishDir "${launchDir}/Meta/${analysis}"
     memory '25GB'
-    machineType 'n2-standard-16'
-    container = 'gwama_meta.sif'
     input:
         tuple val(analysis), val(pheno), path(sumstats_infile), val(cohort_list), path(sumstats_file_list)
     output:
@@ -292,7 +287,6 @@ process call_gwama {
 // Add CHR and POS columns back to the summary stats
 process add_chr_pos_to_meta_sumstats {
     publishDir "${launchDir}/Meta/Sumstats/"
-    machineType 'n2-standard-4'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats_file), path(snp_coords)
@@ -339,7 +333,6 @@ process add_chr_pos_to_meta_sumstats {
 // Filter the sumstats for summary tables
 process filter_sumstats {
     publishDir "${launchDir}/Meta/Suggestive/"
-    machineType 'n2-standard-4'
 
     input:
         tuple val(analysis), val(pheno), path(sumstats_file)
@@ -389,7 +382,6 @@ process filter_sumstats {
 // Create a file to pass to biofilter
 process make_biofilter_positions_input {
     publishDir "${launchDir}/Annotations/"
-    machineType 'n2-standard-4'
 
     input:
         path(filtered_sumstats)
@@ -420,7 +412,6 @@ process make_biofilter_positions_input {
 process plot_meta_results {
     publishDir "${launchDir}/Plots/"
     memory '25GB'
-    machineType 'n2-standard-4'
     label 'safe_to_skip'
 
     input:
@@ -473,7 +464,6 @@ process plot_meta_results_with_annot {
 // Make top hits summary table
 process make_summary_table {
     publishDir "${launchDir}/Summary/"
-    machineType 'n2-standard-4'
 
     input:
         path all_filtered_sumstats
@@ -502,7 +492,6 @@ process make_summary_table {
 // Make top hits summary table with RSIDs and nearest genes
 process make_summary_table_with_annot {
     publishDir "${launchDir}/Summary/"
-    machineType 'n2-standard-4'
 
     input:
         path all_filtered_sumstats
@@ -538,7 +527,6 @@ process make_summary_table_with_annot {
 // Combine the N Samples Files to get a Table of Sample Size
 process make_analysis_size_table {
     publishDir "${launchDir}/Summary/"
-    machineType 'n2-standard-4'
 
     input:
         path(all_sample_sizes)
@@ -575,7 +563,6 @@ process make_analysis_size_table {
 import groovy.json.JsonBuilder
 process dump_params_to_json {
     publishDir "${launchDir}/Summary", mode: 'copy'
-    machineType 'n2-standard-2'
 
     input:
         val params_dict

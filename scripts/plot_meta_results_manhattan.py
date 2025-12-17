@@ -61,7 +61,8 @@ mp.get_thinned_data()
 annot_thresh = 1E-5 if np.any(mp.thinned['P'].min() < 1E-5) else np.nanquantile(mp.thinned['P'], 10 / len(mp.thinned))
 print(annot_thresh)
 print(mp.thinned['P'].describe())
-
+# Replace underscores with colons to avoide confusing the LaTeX formating
+mp.thinned['ID'] = mp.thinned['ID'].str.replace('_', ':')
 mp.update_plotting_parameters(vertical=True, merge_genes=True, 
                               sig=annot_thresh if not np.any(mp.thinned['P'] < 5E-8) else 5E-8, 
                               sug=annot_thresh, annot_thresh=annot_thresh, ld_block=1E6)
