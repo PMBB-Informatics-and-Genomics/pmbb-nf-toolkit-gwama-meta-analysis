@@ -12,7 +12,6 @@ workflow BIOFILTER_POSITIONS {
         
         bf_annot = call_biofilter_positions(
             data_positions,
-            params['biofilter_script'],
             params['biofilter_loki']
             )
 
@@ -26,11 +25,10 @@ ANNOTATIONS = 'position_label snp position gene upstream downstream'
 process call_biofilter_positions {
     publishDir "${launchDir}/Annotations/"
     errorStrategy 'retry'
-    maxRetries 100
+    maxRetries 5
 
     input:
         tuple val(data_nickname), path(positions_file)
-        val(biofilter_script)
         path(biofilter_loki)
     output:
         tuple val(data_nickname), path("${data_nickname}_biofilter_positions_annotations.txt")
@@ -38,7 +36,7 @@ process call_biofilter_positions {
         output_prefix = "${data_nickname}_biofilter_annotations"
         output_ext = ANNOTATIONS.split()[0] + '.' + ANNOTATIONS.split()[1..-1].join('-')
         """
-        ${params.my_python} ${biofilter_script} \
+        ${params.my_python} ${params.biofilter_script} \
           --verbose \
           --knowledge ${biofilter_loki} \
           --position-file ${positions_file} \

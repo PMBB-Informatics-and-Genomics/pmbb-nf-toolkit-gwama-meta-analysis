@@ -1,5 +1,8 @@
 nextflow.enable.dsl = 2
 
+// Set default parameters
+params.random_effect_analyses = []
+
 // log info
 log.info """\
 NEXTFLOW - DSL2 - GWAMA Meta - P I P E L I N E
@@ -42,7 +45,7 @@ workflow {
     gwama_meta_sumstats = GWAMA_META(cohort_pheno_sumstats)
 }
 
-include { BIOFILTER_POSITIONS } from './biofilter_wrapper.nf'
+include { BIOFILTER_POSITIONS } from "${moduleDir}/biofilter_wrapper.nf"
 
 import groovyx.gpars.dataflow.DataflowBroadcast
 
@@ -148,7 +151,7 @@ workflow GWAMA_META {
         gwama_input = make_infile_output.join(analysis_inputs, by: [0, 1])
 
         // Call GWAMA tool
-        gwama_output = call_gwama(gwama_input)
+        gwama_output = call_gwama(gwama_input, params.gwama_path, params.random_effect_analyses, params.quant_pheno_list)
         gwama_meta_output = gwama_output.map { analysis, pheno, meta, gc, snps -> new Tuple(analysis, pheno, meta, snps) }
         gwama_gc_output = gwama_output.map { analysis, pheno, meta, gc, snps -> new Tuple(analysis, pheno, gc) }
 
@@ -212,7 +215,6 @@ process write_dropped_file {
 
 // Munge the summary stats files to format the input for GWAMA
 process munge_sumstats_file {
-    // publishDir "${launchDir}/Meta/MSS/"
     memory '18GB'
 
     input:
@@ -248,7 +250,7 @@ process make_infile {
         tuple val(analysis), val(pheno), path("${pheno}.sumstats.in")
     shell:
         """
-        echo "${input_files.join('\n')}" > ${pheno}.sumstats.in
+        echo "${input_files.sort { it.name }.join('\n')}" > ${pheno}.sumstats.in
         """
     stub:
         """
@@ -258,10 +260,14 @@ process make_infile {
 
 // Call the GWAMA tool
 process call_gwama {
-    publishDir "${launchDir}/Meta/${analysis}"
-    memory '25GB'
+
+    memory '32GB'
+
     input:
         tuple val(analysis), val(pheno), path(sumstats_infile), val(cohort_list), path(sumstats_file_list)
+        val(gwama_path)
+        val(random_effect_analyses)
+        val(quant_pheno_list)
     output:
         tuple val(analysis), val(pheno), path("${pheno}.meta.out"), \
             path("${pheno}.meta.gc.out"), path("${pheno}.meta.snp_coords.txt")
@@ -270,11 +276,13 @@ process call_gwama {
         # First save chromosome, position, and variant ID
         cut -f1-3 *.munged.txt | sort -n | uniq > ${pheno}.meta.snp_coords.txt
 
-        ${params.gwama_path} \
+        ${gwama_path} \
           --filelist ${sumstats_infile} \
           --output ${pheno}.meta \
           --genomic_control \
-          ${params.quant_pheno_list.contains(pheno) ? '-qt' : ''}
+          --indel_alleles \
+          ${random_effect_analyses.contains(analysis) ? '-r': ''} \
+          ${quant_pheno_list.contains(pheno) ? '-qt' : ''}
         """
     stub:
         """
@@ -298,6 +306,7 @@ process add_chr_pos_to_meta_sumstats {
 
         # import python modules
         import pandas as pd
+        import numpy as np
 
         # read in input files
         coords = pd.read_table('${snp_coords}', index_col='MARKERNAME')
@@ -308,6 +317,13 @@ process add_chr_pos_to_meta_sumstats {
 
         # concatenate coordinates and GWAMA output
         df = pd.concat([coords, results], axis=1)
+
+        if 'OR' in df.columns:
+            df['logOR'] = np.log(df['OR'])
+            log_L95 = np.log(df['OR_95L'])
+            diff = df['logOR'] - log_L95
+            df['logOR_standard_error'] = diff / 1.96
+            df = df.drop(columns=['OR_se'])
 
         # rename index
         df.index.name = 'variant_id'
